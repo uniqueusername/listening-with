@@ -1,0 +1,238 @@
+import type { ServerWebSocket } from "bun";
+import QRCode from "qrcode";
+
+interface WebSocketData {
+  type: "host" | "client";
+  roomCode?: string;
+  clientId?: string;
+}
+
+interface Room {
+  code: string;
+  host: ServerWebSocket<WebSocketData>;
+  clients: Set<ServerWebSocket<WebSocketData>>;
+  queue: Song[];
+  lastActivity: number;
+  createdAt: number;
+}
+
+interface Song {
+  videoId: string;
+  title: string;
+  artist: string;
+  submittedBy?: string;
+}
+
+export class RoomManager {
+  private rooms = new Map<string, Room>();
+  private readonly ROOM_TIMEOUT = 5 * 60 * 1000; // 5 minutes of inactivity
+  private readonly BASE_URL = process.env.BASE_URL || "http://localhost:3001";
+
+  generateRoomCode(): string {
+    // generate 4-character alphanumeric code
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // exclude similar looking chars
+    let code = "";
+    for (let i = 0; i < 4; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    // ensure uniqueness
+    if (this.rooms.has(code)) {
+      return this.generateRoomCode();
+    }
+
+    return code;
+  }
+
+  async createRoom(host: ServerWebSocket<WebSocketData>): Promise<{
+    code: string;
+    qrCodeDataUrl: string;
+  }> {
+    const code = this.generateRoomCode();
+
+    const room: Room = {
+      code,
+      host,
+      clients: new Set(),
+      queue: [],
+      lastActivity: Date.now(),
+      createdAt: Date.now(),
+    };
+
+    this.rooms.set(code, room);
+    host.data.roomCode = code;
+    host.data.type = "host";
+
+    // generate qr code with just the room code
+    const joinUrl = `${this.BASE_URL}/join/${code}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(joinUrl);
+
+    console.log(`room created: ${code}`);
+
+    return {
+      code,
+      qrCodeDataUrl,
+    };
+  }
+
+  joinRoom(
+    roomCode: string,
+    client: ServerWebSocket<WebSocketData>,
+    displayName?: string
+  ): boolean {
+    const room = this.rooms.get(roomCode);
+
+    if (!room) {
+      console.log(`join failed: room ${roomCode} not found`);
+      return false;
+    }
+
+    // add client to room
+    room.clients.add(client);
+    client.data.roomCode = roomCode;
+    client.data.type = "client";
+    client.data.clientId = crypto.randomUUID();
+
+    room.lastActivity = Date.now();
+
+    console.log(
+      `client joined room ${roomCode}${displayName ? ` as ${displayName}` : " anonymously"}`
+    );
+
+    // notify host
+    room.host.send(
+      JSON.stringify({
+        type: "client_joined",
+        clientId: client.data.clientId,
+        displayName,
+        clientCount: room.clients.size,
+      })
+    );
+
+    return true;
+  }
+
+  addSongToQueue(roomCode: string, song: Song): boolean {
+    const room = this.rooms.get(roomCode);
+
+    if (!room) {
+      return false;
+    }
+
+    room.queue.push(song);
+    room.lastActivity = Date.now();
+
+    console.log(
+      `song added to room ${roomCode}: ${song.title} by ${song.artist}${
+        song.submittedBy ? ` (submitted by ${song.submittedBy})` : ""
+      }`
+    );
+
+    // notify host of new song
+    room.host.send(
+      JSON.stringify({
+        type: "song_added",
+        song,
+        queueLength: room.queue.length,
+      })
+    );
+
+    return true;
+  }
+
+  getRoom(roomCode: string): Room | undefined {
+    return this.rooms.get(roomCode);
+  }
+
+  removeFromRoom(
+    roomCode: string,
+    connection: ServerWebSocket<WebSocketData>
+  ): void {
+    const room = this.rooms.get(roomCode);
+
+    if (!room) {
+      return;
+    }
+
+    // if host disconnects, close the room
+    if (connection === room.host) {
+      console.log(`host disconnected, closing room ${roomCode}`);
+
+      // notify all clients
+      room.clients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            type: "room_closed",
+            reason: "host disconnected",
+          })
+        );
+        client.close();
+      });
+
+      this.rooms.delete(roomCode);
+      return;
+    }
+
+    // remove client
+    room.clients.delete(connection);
+    room.lastActivity = Date.now();
+
+    console.log(`client left room ${roomCode}`);
+
+    // notify host
+    room.host.send(
+      JSON.stringify({
+        type: "client_left",
+        clientId: connection.data.clientId,
+        clientCount: room.clients.size,
+      })
+    );
+  }
+
+  cleanupExpiredRooms(): void {
+    const now = Date.now();
+    const expiredRooms: string[] = [];
+
+    this.rooms.forEach((room, code) => {
+      if (now - room.lastActivity > this.ROOM_TIMEOUT) {
+        expiredRooms.push(code);
+      }
+    });
+
+    expiredRooms.forEach((code) => {
+      const room = this.rooms.get(code);
+      if (room) {
+        console.log(`room ${code} expired due to inactivity`);
+
+        // notify all clients
+        room.clients.forEach((client) => {
+          client.send(
+            JSON.stringify({
+              type: "room_closed",
+              reason: "inactivity timeout",
+            })
+          );
+          client.close();
+        });
+
+        // notify host
+        room.host.send(
+          JSON.stringify({
+            type: "room_closed",
+            reason: "inactivity timeout",
+          })
+        );
+        room.host.close();
+
+        this.rooms.delete(code);
+      }
+    });
+  }
+
+  updateActivity(roomCode: string): void {
+    const room = this.rooms.get(roomCode);
+    if (room) {
+      room.lastActivity = Date.now();
+    }
+  }
+}
