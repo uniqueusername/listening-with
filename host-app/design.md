@@ -702,7 +702,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "WS_URL", "\"ws://10.0.0.110:3000/ws\"") // emulator localhost
+            buildConfigField("String", "WS_URL", "\"wss://lw.hyperbeam.sh/ws\"") // production server
         }
         release {
             buildConfigField("String", "WS_URL", "\"wss://your-server.com/ws\"")

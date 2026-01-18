@@ -18,11 +18,11 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "WS_URL", "\"ws://10.0.0.110:3000/ws\"")
+            buildConfigField("String", "WS_URL", "\"wss://lw.hyperbeam.sh/ws\"")
         }
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "WS_URL", "\"wss://your-server.com/ws\"")
+            buildConfigField("String", "WS_URL", "\"wss://lw.hyperbeam.sh/ws\"")
         }
     }
 
