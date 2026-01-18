@@ -58,7 +58,11 @@ class MainActivity : ComponentActivity() {
 
                     when (state.screen) {
                         Screen.Idle -> IdleScreen(
-                            onCreateRoom = viewModel::createRoom
+                            onCreateRoom = viewModel::createRoom,
+                            customUrl = state.customUrl,
+                            isCustomUrlVisible = state.isCustomUrlVisible,
+                            onToggleCustomUrl = viewModel::toggleCustomUrl,
+                            onUpdateCustomUrl = viewModel::updateCustomUrl
                         )
 
                         Screen.Connecting -> ConnectingScreen(

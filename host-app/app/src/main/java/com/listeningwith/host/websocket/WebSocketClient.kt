@@ -124,6 +124,10 @@ class WebSocketClient(
         send(ClientMessage.CreateRoom)
     }
 
+    fun sendQueueUpdate(queue: List<com.listeningwith.host.queue.QueuedSong>, nowPlaying: com.listeningwith.host.queue.QueuedSong?) {
+        send(ClientMessage.UpdateQueue(queue, nowPlaying))
+    }
+
     private fun sendHeartbeat() {
         send(ClientMessage.Heartbeat)
     }

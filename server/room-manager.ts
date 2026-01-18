@@ -235,4 +235,14 @@ export class RoomManager {
       room.lastActivity = Date.now();
     }
   }
+
+  broadcastToClients(roomCode: string, message: any): void {
+    const room = this.rooms.get(roomCode);
+    if (room) {
+      const messageStr = JSON.stringify(message);
+      room.clients.forEach((client) => {
+        client.send(messageStr);
+      });
+    }
+  }
 }

@@ -25,4 +25,5 @@ export type ServerMessage =
   | { type: 'song_added_success' }
   | { type: 'heartbeat_ack' }
   | { type: 'error'; message: string }
-  | { type: 'room_closed'; reason: string };
+  | { type: 'room_closed'; reason: string }
+  | { type: 'queue_update'; queue: Song[]; nowPlaying: Song | null };

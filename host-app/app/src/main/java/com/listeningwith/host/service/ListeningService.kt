@@ -82,6 +82,13 @@ class ListeningService : Service() {
             }
         }
 
+        // Check if a custom URL was passed
+        val customUrl = intent?.getStringExtra("WS_URL")
+        if (customUrl != null && ::webSocketClient.isInitialized) {
+             // If we already have a client but the URL changed, we might need to handle it.
+             // But usually onStartCommand is called before startSession
+        }
+
         startForeground(NOTIFICATION_ID, createNotification())
         return START_STICKY
     }
@@ -93,6 +100,7 @@ class ListeningService : Service() {
     }
 
     private fun initializeComponents() {
+        // Initialize with default, will be re-initialized if startSession is called with a different URL
         webSocketClient = WebSocketClient(
             serverUrl = BuildConfig.WS_URL,
             onMessage = ::handleServerMessage,
@@ -107,8 +115,21 @@ class ListeningService : Service() {
         playbackController = PlaybackController(this)
     }
 
-    fun startSession() {
-        Log.d(TAG, "starting session")
+    fun startSession(url: String = BuildConfig.WS_URL) {
+        Log.d(TAG, "starting session with url: $url")
+        
+        // Re-initialize WebSocketClient if URL is different
+        // Or just create a new one since we are starting a fresh session
+        if (::webSocketClient.isInitialized) {
+            webSocketClient.disconnect()
+        }
+        
+        webSocketClient = WebSocketClient(
+            serverUrl = url,
+            onMessage = ::handleServerMessage,
+            onConnectionStateChange = ::handleConnectionStateChange
+        )
+        
         webSocketClient.connect()
         mediaObserver.start()
     }
@@ -180,6 +201,8 @@ class ListeningService : Service() {
                     queue = queueManager.getAll()
                 )
 
+                sendQueueUpdate()
+
                 // If nothing is playing, start playing
                 if (_serviceState.value.nowPlaying == null) {
                     playNextFromQueue()
@@ -215,6 +238,7 @@ class ListeningService : Service() {
                 nowPlaying = null,
                 queue = queueManager.getAll()
             )
+            sendQueueUpdate()
             return
         }
 
@@ -223,6 +247,7 @@ class ListeningService : Service() {
             nowPlaying = nextSong,
             queue = queueManager.getAll()
         )
+        sendQueueUpdate()
 
         mediaObserver.markPlaybackTriggered()
         val result = playbackController.playYouTubeMusicSong(nextSong.videoId)
@@ -241,6 +266,13 @@ class ListeningService : Service() {
                 // Try next song
                 playNextFromQueue()
             }
+        }
+    }
+
+    private fun sendQueueUpdate() {
+        val state = _serviceState.value
+        if (state.connectionState == ConnectionState.CONNECTED) {
+            webSocketClient.sendQueueUpdate(state.queue, state.nowPlaying)
         }
     }
 

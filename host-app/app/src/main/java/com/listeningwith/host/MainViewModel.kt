@@ -40,7 +40,9 @@ data class UiState(
     val queue: List<QueuedSong> = emptyList(),
     val error: String? = null,
     val isConnecting: Boolean = false,
-    val missingPermission: MissingPermission = MissingPermission.NONE
+    val missingPermission: MissingPermission = MissingPermission.NONE,
+    val customUrl: String = BuildConfig.WS_URL,
+    val isCustomUrlVisible: Boolean = false
 )
 
 class MainViewModel : ViewModel() {
@@ -50,7 +52,7 @@ class MainViewModel : ViewModel() {
     private var service: ListeningService? = null
     private var isBound = false
     private var applicationContext: Context? = null
-
+    
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val localBinder = binder as ListeningService.LocalBinder
@@ -99,6 +101,14 @@ class MainViewModel : ViewModel() {
         )
     }
 
+    fun toggleCustomUrl() {
+        _uiState.value = _uiState.value.copy(isCustomUrlVisible = !_uiState.value.isCustomUrlVisible)
+    }
+
+    fun updateCustomUrl(url: String) {
+        _uiState.value = _uiState.value.copy(customUrl = url)
+    }
+
     fun createRoom() {
         val context = applicationContext ?: return
 
@@ -115,7 +125,10 @@ class MainViewModel : ViewModel() {
         )
 
         // Start and bind to service
-        val intent = Intent(context, ListeningService::class.java)
+        val intent = Intent(context, ListeningService::class.java).apply {
+            putExtra("WS_URL", _uiState.value.customUrl)
+        }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
         } else {
@@ -127,7 +140,7 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             // Give the service time to bind
             kotlinx.coroutines.delay(100)
-            service?.startSession()
+            service?.startSession(_uiState.value.customUrl)
         }
     }
 

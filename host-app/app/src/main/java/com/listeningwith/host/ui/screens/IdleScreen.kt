@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,6 +25,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun IdleScreen(
     onCreateRoom: () -> Unit,
+    customUrl: String,
+    isCustomUrlVisible: Boolean,
+    onToggleCustomUrl: () -> Unit,
+    onUpdateCustomUrl: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -64,6 +69,23 @@ fun IdleScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("create room")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        TextButton(onClick = onToggleCustomUrl) {
+            Text(if (isCustomUrlVisible) "hide server settings" else "configure server")
+        }
+
+        if (isCustomUrlVisible) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = customUrl,
+                onValueChange = onUpdateCustomUrl,
+                label = { Text("server url") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
         }
     }
 }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import type { ClientMessage, ServerMessage, SearchResult } from '../lib/types';
+import type { ClientMessage, ServerMessage, SearchResult, Song } from '../lib/types';
 
 interface WebSocketContextType {
   isConnected: boolean;
@@ -7,6 +7,8 @@ interface WebSocketContextType {
   roomCode: string | null;
   displayName: string | null;
   searchResults: SearchResult[];
+  queue: Song[];
+  nowPlaying: Song | null;
   lastError: string | null;
   joinRoom: (roomCode: string, displayName?: string) => void;
   searchSongs: (query: string) => void;
@@ -32,6 +34,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [queue, setQueue] = useState<Song[]>([]);
+  const [nowPlaying, setNowPlaying] = useState<Song | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
   const connect = useCallback(() => {
@@ -54,7 +58,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }
     
-    console.log(`connecting to ${wsUrl}`);
+    console.log(`[WebSocket] Attempting connection to: ${wsUrl}`);
     const socket = new WebSocket(wsUrl);
     ws.current = socket;
 
@@ -124,6 +128,10 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       case 'song_added_success':
         console.log('song added successfully');
         break;
+      case 'queue_update':
+        setQueue(message.queue);
+        setNowPlaying(message.nowPlaying);
+        break;
       case 'error':
         setLastError(message.message.toLowerCase());
         break;
@@ -177,6 +185,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         roomCode,
         displayName,
         searchResults,
+        queue,
+        nowPlaying,
         lastError,
         joinRoom,
         searchSongs,

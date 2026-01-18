@@ -16,6 +16,20 @@ sealed class ClientMessage {
     object Heartbeat : ClientMessage() {
         override fun toJson(): String = """{"type":"heartbeat"}"""
     }
+
+    data class UpdateQueue(
+        val queue: List<QueuedSong>,
+        val nowPlaying: QueuedSong?
+    ) : ClientMessage() {
+        override fun toJson(): String {
+            val gson = Gson()
+            return gson.toJson(mapOf(
+                "type" to "update_queue",
+                "queue" to queue,
+                "nowPlaying" to nowPlaying
+            ))
+        }
+    }
 }
 
 // Incoming messages (server -> host)

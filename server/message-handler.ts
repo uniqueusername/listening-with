@@ -174,6 +174,20 @@ export async function handleMessage(
       break;
     }
 
+    case "update_queue": {
+      if (!ws.data.roomCode || ws.data.type !== "host") {
+        return;
+      }
+
+      const { queue, nowPlaying } = data;
+      roomManager.broadcastToClients(ws.data.roomCode, {
+        type: "queue_update",
+        queue,
+        nowPlaying,
+      });
+      break;
+    }
+
     default: {
       console.log(`unknown message type: ${type}`);
       ws.send(
