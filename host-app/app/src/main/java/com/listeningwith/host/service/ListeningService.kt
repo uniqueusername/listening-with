@@ -150,6 +150,7 @@ class ListeningService : Service() {
     }
 
     private fun cleanup() {
+        NfcDataHolder.currentUrl = null
         webSocketClient.disconnect()
         mediaObserver.stop()
         queueManager.clear()
@@ -173,6 +174,10 @@ class ListeningService : Service() {
         when (message) {
             is ServerMessage.RoomCreated -> {
                 val bitmap = decodeQrCodeDataUrl(message.qrCodeDataUrl)
+                
+                // Update NFC URL
+                NfcDataHolder.currentUrl = message.joinUrl
+
                 _serviceState.value = _serviceState.value.copy(
                     roomCode = message.code,
                     qrCodeBitmap = bitmap,

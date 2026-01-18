@@ -46,7 +46,8 @@ sealed class ServerMessage {
                 when (type) {
                     "room_created" -> RoomCreated(
                         code = jsonObject.get("code").asString,
-                        qrCodeDataUrl = jsonObject.get("qrCodeDataUrl").asString
+                        qrCodeDataUrl = jsonObject.get("qrCodeDataUrl").asString,
+                        joinUrl = jsonObject.get("joinUrl").asString
                     )
                     "client_joined" -> ClientJoined(
                         clientId = jsonObject.get("clientId").asString,
@@ -86,7 +87,8 @@ sealed class ServerMessage {
 
     data class RoomCreated(
         val code: String,
-        val qrCodeDataUrl: String
+        val qrCodeDataUrl: String,
+        val joinUrl: String
     ) : ServerMessage()
 
     data class ClientJoined(

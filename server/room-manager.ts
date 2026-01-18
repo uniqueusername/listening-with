@@ -47,6 +47,7 @@ export class RoomManager {
   async createRoom(host: ServerWebSocket<WebSocketData>): Promise<{
     code: string;
     qrCodeDataUrl: string;
+    joinUrl: string;
   }> {
     const code = this.generateRoomCode();
 
@@ -72,6 +73,7 @@ export class RoomManager {
     return {
       code,
       qrCodeDataUrl,
+      joinUrl,
     };
   }
 

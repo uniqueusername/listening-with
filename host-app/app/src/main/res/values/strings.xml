@@ -3,4 +3,6 @@
     <string name="app_name">listening-with</string>
     <string name="notification_channel_name">listening session</string>
     <string name="notification_channel_description">shows the current listening session status</string>
+    <string name="servicedesc">Listening-With NFC Host</string>
+    <string name="aiddescription">Listening-With NFC Tag</string>
 </resources>
