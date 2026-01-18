@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">listening-with</string>
+    <string name="notification_channel_name">listening session</string>
+    <string name="notification_channel_description">shows the current listening session status</string>
+</resources>
