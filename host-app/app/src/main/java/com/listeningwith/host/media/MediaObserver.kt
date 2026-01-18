@@ -8,6 +8,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.listeningwith.host.service.NotificationListener
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,9 @@ class MediaObserver(
             val controller = currentController
             if (controller != null) {
                 val metadata = controller.metadata
+                val playbackState = controller.playbackState
                 checkForTrackChange(metadata)
+                checkForSongEnd(playbackState)
                 updatePlaybackInfo()
             }
             handler.postDelayed(this, POLL_INTERVAL_MS)
@@ -166,19 +169,31 @@ class MediaObserver(
     }
 
     private fun checkForSongEnd(state: PlaybackState?) {
-        if (state?.state == PlaybackState.STATE_STOPPED ||
-            state?.state == PlaybackState.STATE_PAUSED
-        ) {
-            val position = state.position
+        if (state == null) return
+
+        val isPlaying = state.state == PlaybackState.STATE_PLAYING
+        val isStoppedOrPaused = state.state == PlaybackState.STATE_STOPPED ||
+                state.state == PlaybackState.STATE_PAUSED
+
+        if (isPlaying || isStoppedOrPaused) {
             val duration = currentController?.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0
+            val position = getCurrentPosition(state)
 
             if (duration > 0 && position >= duration - SONG_END_THRESHOLD_MS) {
-                Log.d(TAG, "song ended naturally - position: $position, duration: $duration")
+                Log.d(TAG, "song ended (or near end) - position: $position, duration: $duration, state: ${getStateName(state.state)}")
                 if (!justTriggeredPlayback) {
                     onSongEnded()
                 }
             }
         }
+    }
+
+    private fun getCurrentPosition(state: PlaybackState): Long {
+        if (state.state != PlaybackState.STATE_PLAYING) {
+            return state.position
+        }
+        val timeDelta = SystemClock.elapsedRealtime() - state.lastPositionUpdateTime
+        return (state.position + (timeDelta * state.playbackSpeed)).toLong()
     }
 
     private fun checkForTrackChange(metadata: MediaMetadata?) {
