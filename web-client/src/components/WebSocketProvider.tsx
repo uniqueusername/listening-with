@@ -5,6 +5,7 @@ interface WebSocketContextType {
   isConnected: boolean;
   isConnecting: boolean;
   roomCode: string | null;
+  displayName: string | null;
   searchResults: SearchResult[];
   lastError: string | null;
   joinRoom: (roomCode: string, displayName?: string) => void;
@@ -29,6 +30,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -134,11 +136,12 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const joinRoom = (code: string, displayName?: string) => {
+  const joinRoom = (code: string, name?: string) => {
+    if (name) setDisplayName(name);
     sendMessage({
       type: 'join_room',
       roomCode: code,
-      displayName
+      displayName: name
     });
   };
 
@@ -152,7 +155,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       videoId: song.videoId,
       title: song.title,
       artist: song.artist,
-      submittedBy
+      submittedBy: submittedBy || displayName || undefined
     });
   };
 
@@ -162,6 +165,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   
   const leaveRoom = () => {
     setRoomCode(null);
+    setDisplayName(null);
     setSearchResults([]);
   };
 
@@ -171,6 +175,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isConnected,
         isConnecting,
         roomCode,
+        displayName,
         searchResults,
         lastError,
         joinRoom,
