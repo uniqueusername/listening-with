@@ -1,7 +1,7 @@
 // host simulator to keep a room open for web client testing
 // usage: bun run simulate-host.ts
 
-const ws = new WebSocket("ws://localhost:3000/ws");
+const ws = new WebSocket("ws://localhost:2946/ws");
 
 ws.onopen = () => {
   console.log("connected to server");

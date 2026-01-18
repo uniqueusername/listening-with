@@ -1,6 +1,6 @@
 // simple websocket client for testing the server
 
-const ws = new WebSocket("ws://localhost:3000/ws");
+const ws = new WebSocket("ws://localhost:2946/ws");
 
 ws.onopen = () => {
   console.log("connected to server");

@@ -1,6 +1,6 @@
 // comprehensive server test suite
 
-const SERVER_URL = "ws://localhost:3000/ws";
+const SERVER_URL = "ws://localhost:2946/ws";
 
 class TestRunner {
   private hostWs: WebSocket | null = null;
@@ -36,7 +36,7 @@ class TestRunner {
     console.log("📋 test: health endpoint");
 
     try {
-      const response = await fetch("http://localhost:3000/health");
+      const response = await fetch("http://localhost:2946/health");
       const text = await response.text();
 
       if (response.status === 200 && text === "ok") {

@@ -2,7 +2,7 @@ import type { ServerWebSocket } from "bun";
 import { RoomManager } from "./room-manager";
 import { handleMessage } from "./message-handler";
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 2946;
 const roomManager = new RoomManager();
 
 interface WebSocketData {

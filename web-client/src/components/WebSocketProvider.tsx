@@ -37,7 +37,20 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setIsConnecting(true);
     // Dynamic WebSocket URL: use env var if set, otherwise derive from current hostname
-    const wsUrl = import.meta.env.PUBLIC_WS_URL || `ws://${window.location.hostname}:3000/ws`;
+    let wsUrl = import.meta.env.PUBLIC_WS_URL;
+    if (!wsUrl) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const port = window.location.port ? `:${window.location.port}` : '';
+      const isProduction = window.location.protocol === 'https:';
+      
+      if (isProduction) {
+        // In production (https), assume same domain, standard port (443), path /ws
+        wsUrl = `wss://${window.location.hostname}/ws`;
+      } else {
+        // In dev (http), default to port 2946 (server default)
+        wsUrl = `ws://${window.location.hostname}:2946/ws`;
+      }
+    }
     
     console.log(`connecting to ${wsUrl}`);
     const socket = new WebSocket(wsUrl);

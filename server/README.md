@@ -18,11 +18,11 @@ start the server:
 bun run index.ts
 ```
 
-the server will start on `ws://localhost:3000/ws` by default.
+the server will start on `ws://localhost:2946/ws` by default.
 
 ## environment variables
 
-- `PORT` - server port (default: 3000)
+- `PORT` - server port (default: 2946)
 - `BASE_URL` - base url for qr code generation (default: http://localhost:3001)
 
 ## websocket protocol
@@ -200,7 +200,7 @@ if you have `wscat` installed:
 npm install -g wscat
 
 # connect to server
-wscat -c ws://localhost:3000/ws
+wscat -c ws://localhost:2946/ws
 
 # then send json messages:
 {"type":"create_room"}
