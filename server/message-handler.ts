@@ -18,7 +18,8 @@ export async function handleMessage(
   switch (type) {
     case "create_room": {
       try {
-        const roomData = await roomManager.createRoom(ws);
+        const { baseUrl } = data;
+        const roomData = await roomManager.createRoom(ws, baseUrl);
         ws.send(
           JSON.stringify({
             type: "room_created",

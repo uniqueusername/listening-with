@@ -56,6 +56,7 @@ class ListeningService : Service() {
     private lateinit var mediaObserver: MediaObserver
     private lateinit var playbackController: PlaybackController
     private val queueManager = QueueManager()
+    private var webClientBaseUrl: String? = null
 
     private val _serviceState = MutableStateFlow(ServiceState())
     val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
@@ -115,21 +116,23 @@ class ListeningService : Service() {
         playbackController = PlaybackController(this)
     }
 
-    fun startSession(url: String = BuildConfig.WS_URL) {
-        Log.d(TAG, "starting session with url: $url")
-        
+    fun startSession(url: String = BuildConfig.WS_URL, webClientUrl: String = "https://lw.hyperbeam.sh") {
+        Log.d(TAG, "starting session with server url: $url, web client url: $webClientUrl")
+
+        webClientBaseUrl = webClientUrl
+
         // Re-initialize WebSocketClient if URL is different
         // Or just create a new one since we are starting a fresh session
         if (::webSocketClient.isInitialized) {
             webSocketClient.disconnect()
         }
-        
+
         webSocketClient = WebSocketClient(
             serverUrl = url,
             onMessage = ::handleServerMessage,
             onConnectionStateChange = ::handleConnectionStateChange
         )
-        
+
         webSocketClient.connect()
         mediaObserver.start()
     }
@@ -162,7 +165,7 @@ class ListeningService : Service() {
         _serviceState.value = _serviceState.value.copy(connectionState = state)
 
         if (state == ConnectionState.CONNECTED) {
-            webSocketClient.createRoom()
+            webSocketClient.createRoom(webClientBaseUrl)
         }
 
         updateNotification()

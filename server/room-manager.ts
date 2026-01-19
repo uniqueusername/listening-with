@@ -44,7 +44,7 @@ export class RoomManager {
     return code;
   }
 
-  async createRoom(host: ServerWebSocket<WebSocketData>): Promise<{
+  async createRoom(host: ServerWebSocket<WebSocketData>, baseUrl?: string): Promise<{
     code: string;
     qrCodeDataUrl: string;
     joinUrl: string;
@@ -65,7 +65,9 @@ export class RoomManager {
     host.data.type = "host";
 
     // generate qr code with just the room code
-    const joinUrl = `${this.BASE_URL}/join/${code}`;
+    // use provided baseUrl if available, otherwise fall back to default
+    const effectiveBaseUrl = baseUrl || this.BASE_URL;
+    const joinUrl = `${effectiveBaseUrl}/join/${code}`;
     const qrCodeDataUrl = await QRCode.toDataURL(joinUrl);
 
     console.log(`room created: ${code}`);

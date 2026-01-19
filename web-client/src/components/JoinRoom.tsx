@@ -1,28 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useWebSocket } from './WebSocketProvider';
 import QRScanner from './QRScanner';
 import { QrCode, Keyboard, User } from 'lucide-react';
 import { clsx } from 'clsx';
 
-const JoinRoom: React.FC = () => {
+interface JoinRoomProps {
+  initialRoomCode?: string;
+}
+
+const JoinRoom: React.FC<JoinRoomProps> = ({ initialRoomCode }) => {
   const { joinRoom, lastError, isConnecting } = useWebSocket();
-  const [mode, setMode] = useState<'scan' | 'manual'>('scan');
+  const [mode, setMode] = useState<'scan' | 'manual'>(initialRoomCode ? 'manual' : 'scan');
   const [displayName, setDisplayName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
+  const [roomCode, setRoomCode] = useState(initialRoomCode?.toUpperCase() || '');
   const [isScanning, setIsScanning] = useState(false);
-
-  useEffect(() => {
-    // Check URL parameters for auto-join
-    const params = new URLSearchParams(window.location.search);
-    const pathParts = window.location.pathname.split('/');
-    const codeFromPath = pathParts[pathParts.length - 1];
-
-    if (codeFromPath && codeFromPath.length === 4) {
-       // if navigating to /ABCD, might want to auto-fill or auto-join
-       setRoomCode(codeFromPath.toUpperCase());
-       setMode('manual');
-    }
-  }, []);
 
   const handleScan = (decodedText: string) => {
     try {

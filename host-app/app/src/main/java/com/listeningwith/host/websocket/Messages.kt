@@ -9,8 +9,14 @@ import com.listeningwith.host.queue.QueuedSong
 sealed class ClientMessage {
     abstract fun toJson(): String
 
-    object CreateRoom : ClientMessage() {
-        override fun toJson(): String = """{"type":"create_room"}"""
+    data class CreateRoom(val baseUrl: String? = null) : ClientMessage() {
+        override fun toJson(): String {
+            return if (baseUrl != null) {
+                """{"type":"create_room","baseUrl":"$baseUrl"}"""
+            } else {
+                """{"type":"create_room"}"""
+            }
+        }
     }
 
     object Heartbeat : ClientMessage() {

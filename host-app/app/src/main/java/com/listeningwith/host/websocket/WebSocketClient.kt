@@ -120,8 +120,8 @@ class WebSocketClient(
         webSocket?.send(json)
     }
 
-    fun createRoom() {
-        send(ClientMessage.CreateRoom)
+    fun createRoom(baseUrl: String? = null) {
+        send(ClientMessage.CreateRoom(baseUrl))
     }
 
     fun sendQueueUpdate(queue: List<com.listeningwith.host.queue.QueuedSong>, nowPlaying: com.listeningwith.host.queue.QueuedSong?) {

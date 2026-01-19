@@ -26,9 +26,11 @@ import androidx.compose.ui.unit.dp
 fun IdleScreen(
     onCreateRoom: () -> Unit,
     customUrl: String,
+    webClientBaseUrl: String,
     isCustomUrlVisible: Boolean,
     onToggleCustomUrl: () -> Unit,
     onUpdateCustomUrl: (String) -> Unit,
+    onUpdateWebClientBaseUrl: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -83,6 +85,14 @@ fun IdleScreen(
                 value = customUrl,
                 onValueChange = onUpdateCustomUrl,
                 label = { Text("server url") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = webClientBaseUrl,
+                onValueChange = onUpdateWebClientBaseUrl,
+                label = { Text("web client url") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )

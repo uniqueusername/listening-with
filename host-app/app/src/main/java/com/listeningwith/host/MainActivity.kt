@@ -1,7 +1,10 @@
 package com.listeningwith.host
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.pm.PackageManager
+import android.nfc.NfcAdapter
+import android.nfc.cardemulation.CardEmulation
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.listeningwith.host.service.NfcHostService
 import com.listeningwith.host.ui.screens.ConnectingScreen
 import com.listeningwith.host.ui.screens.IdleScreen
 import com.listeningwith.host.ui.screens.PermissionScreen
@@ -24,6 +28,8 @@ import com.listeningwith.host.ui.theme.ListeningWithTheme
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private var nfcAdapter: NfcAdapter? = null
+    private var cardEmulation: CardEmulation? = null
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -36,6 +42,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         viewModel.initialize(this)
+
+        // Initialize NFC for preferred service
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        nfcAdapter?.let { adapter ->
+            cardEmulation = CardEmulation.getInstance(adapter)
+        }
 
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -60,9 +72,11 @@ class MainActivity : ComponentActivity() {
                         Screen.Idle -> IdleScreen(
                             onCreateRoom = viewModel::createRoom,
                             customUrl = state.customUrl,
+                            webClientBaseUrl = state.webClientBaseUrl,
                             isCustomUrlVisible = state.isCustomUrlVisible,
                             onToggleCustomUrl = viewModel::toggleCustomUrl,
-                            onUpdateCustomUrl = viewModel::updateCustomUrl
+                            onUpdateCustomUrl = viewModel::updateCustomUrl,
+                            onUpdateWebClientBaseUrl = viewModel::updateWebClientBaseUrl
                         )
 
                         Screen.Connecting -> ConnectingScreen(
@@ -105,5 +119,18 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.checkPermissions()
+
+        // Set this app's HCE service as preferred when in foreground
+        cardEmulation?.setPreferredService(
+            this,
+            ComponentName(this, NfcHostService::class.java)
+        )
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        // Unset preferred service when leaving foreground
+        cardEmulation?.unsetPreferredService(this)
     }
 }

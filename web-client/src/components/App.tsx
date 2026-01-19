@@ -3,20 +3,28 @@ import { WebSocketProvider, useWebSocket } from './WebSocketProvider';
 import JoinRoom from './JoinRoom';
 import Room from './Room';
 
-const AppContent: React.FC = () => {
+interface AppContentProps {
+  initialRoomCode?: string;
+}
+
+const AppContent: React.FC<AppContentProps> = ({ initialRoomCode }) => {
   const { roomCode } = useWebSocket();
 
   return (
     <>
-      {roomCode ? <Room /> : <JoinRoom />}
+      {roomCode ? <Room /> : <JoinRoom initialRoomCode={initialRoomCode} />}
     </>
   );
 };
 
-const App: React.FC = () => {
+interface AppProps {
+  initialRoomCode?: string;
+}
+
+const App: React.FC<AppProps> = ({ initialRoomCode }) => {
   return (
     <WebSocketProvider>
-      <AppContent />
+      <AppContent initialRoomCode={initialRoomCode} />
     </WebSocketProvider>
   );
 };

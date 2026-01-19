@@ -42,6 +42,7 @@ data class UiState(
     val isConnecting: Boolean = false,
     val missingPermission: MissingPermission = MissingPermission.NONE,
     val customUrl: String = BuildConfig.WS_URL,
+    val webClientBaseUrl: String = "https://lw.hyperbeam.sh",
     val isCustomUrlVisible: Boolean = false
 )
 
@@ -109,6 +110,10 @@ class MainViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(customUrl = url)
     }
 
+    fun updateWebClientBaseUrl(url: String) {
+        _uiState.value = _uiState.value.copy(webClientBaseUrl = url)
+    }
+
     fun createRoom() {
         val context = applicationContext ?: return
 
@@ -140,7 +145,7 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             // Give the service time to bind
             kotlinx.coroutines.delay(100)
-            service?.startSession(_uiState.value.customUrl)
+            service?.startSession(_uiState.value.customUrl, _uiState.value.webClientBaseUrl)
         }
     }
 
