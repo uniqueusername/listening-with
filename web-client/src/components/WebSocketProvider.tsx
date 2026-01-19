@@ -38,6 +38,9 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [nowPlaying, setNowPlaying] = useState<Song | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
+  // Store room info for reconnection after disconnect
+  const pendingRejoin = useRef<{ roomCode: string; displayName?: string } | null>(null);
+
   const connect = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
@@ -67,13 +70,23 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsConnected(true);
       setIsConnecting(false);
       setLastError(null);
+
+      // If we have a pending rejoin (reconnecting after disconnect), rejoin the room
+      if (pendingRejoin.current) {
+        console.log('rejoining room after reconnect:', pendingRejoin.current.roomCode);
+        socket.send(JSON.stringify({
+          type: 'join_room',
+          roomCode: pendingRejoin.current.roomCode,
+          displayName: pendingRejoin.current.displayName
+        }));
+      }
     };
 
     socket.onclose = () => {
       console.log('disconnected from websocket server');
       setIsConnected(false);
       setIsConnecting(false);
-      setRoomCode(null);
+      // Don't clear roomCode - we'll try to reconnect and rejoin
     };
 
     socket.onerror = (error) => {
@@ -94,7 +107,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     connect();
-    
+
     // Heartbeat
     const heartbeatInterval = setInterval(() => {
       if (ws.current?.readyState === WebSocket.OPEN) {
@@ -102,8 +115,21 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }, 30000);
 
+    // Reconnect when page becomes visible (handles mobile tab switching/app backgrounding)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('page became visible, checking connection...');
+        if (ws.current?.readyState !== WebSocket.OPEN) {
+          console.log('connection lost, reconnecting...');
+          connect();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       clearInterval(heartbeatInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       ws.current?.close();
     };
   }, [connect]);
@@ -146,6 +172,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const joinRoom = (code: string, name?: string) => {
     if (name) setDisplayName(name);
+    // Store for reconnection
+    pendingRejoin.current = { roomCode: code, displayName: name };
     sendMessage({
       type: 'join_room',
       roomCode: code,
@@ -172,6 +200,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
   
   const leaveRoom = () => {
+    pendingRejoin.current = null;
     setRoomCode(null);
     setDisplayName(null);
     setSearchResults([]);

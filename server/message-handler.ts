@@ -54,17 +54,25 @@ export async function handleMessage(
       // normalize room code to uppercase for case-insensitive matching
       const normalizedRoomCode = roomCode.toUpperCase();
 
-      const success = roomManager.joinRoom(
+      const result = roomManager.joinRoom(
         normalizedRoomCode,
         ws,
         displayName
       );
 
-      if (success) {
+      if (result.success) {
         ws.send(
           JSON.stringify({
             type: "room_joined",
             roomCode: normalizedRoomCode,
+          })
+        );
+        // Send current queue state to the newly joined client
+        ws.send(
+          JSON.stringify({
+            type: "queue_update",
+            queue: result.queue,
+            nowPlaying: result.nowPlaying,
           })
         );
       } else {
@@ -181,6 +189,8 @@ export async function handleMessage(
       }
 
       const { queue, nowPlaying } = data;
+      // Store the queue state so new clients can receive it when they join
+      roomManager.updateQueueState(ws.data.roomCode, queue, nowPlaying);
       roomManager.broadcastToClients(ws.data.roomCode, {
         type: "queue_update",
         queue,

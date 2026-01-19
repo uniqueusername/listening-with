@@ -194,6 +194,8 @@ class ListeningService : Service() {
                     listenerCount = message.clientCount
                 )
                 updateNotification()
+                // Send current queue state so the new client gets the latest info
+                sendQueueUpdate()
             }
 
             is ServerMessage.ClientLeft -> {

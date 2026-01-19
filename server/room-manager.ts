@@ -12,6 +12,7 @@ interface Room {
   host: ServerWebSocket<WebSocketData>;
   clients: Set<ServerWebSocket<WebSocketData>>;
   queue: Song[];
+  nowPlaying: Song | null;
   lastActivity: number;
   createdAt: number;
 }
@@ -29,8 +30,8 @@ export class RoomManager {
   private readonly BASE_URL = process.env.BASE_URL || "http://localhost:3001";
 
   generateRoomCode(): string {
-    // generate 4-character alphanumeric code
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // exclude similar looking chars
+    // generate 4-character alphabetic code
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // exclude similar looking chars (I, O)
     let code = "";
     for (let i = 0; i < 4; i++) {
       code += chars[Math.floor(Math.random() * chars.length)];
@@ -56,6 +57,7 @@ export class RoomManager {
       host,
       clients: new Set(),
       queue: [],
+      nowPlaying: null,
       lastActivity: Date.now(),
       createdAt: Date.now(),
     };
@@ -67,7 +69,7 @@ export class RoomManager {
     // generate qr code with just the room code
     // use provided baseUrl if available, otherwise fall back to default
     const effectiveBaseUrl = baseUrl || this.BASE_URL;
-    const joinUrl = `${effectiveBaseUrl}/join/${code}`;
+    const joinUrl = `${effectiveBaseUrl}?code=${code}`;
     const qrCodeDataUrl = await QRCode.toDataURL(joinUrl);
 
     console.log(`room created: ${code}`);
@@ -83,12 +85,12 @@ export class RoomManager {
     roomCode: string,
     client: ServerWebSocket<WebSocketData>,
     displayName?: string
-  ): boolean {
+  ): { success: false } | { success: true; queue: Song[]; nowPlaying: Song | null } {
     const room = this.rooms.get(roomCode);
 
     if (!room) {
       console.log(`join failed: room ${roomCode} not found`);
-      return false;
+      return { success: false };
     }
 
     // add client to room
@@ -113,7 +115,7 @@ export class RoomManager {
       })
     );
 
-    return true;
+    return { success: true, queue: room.queue, nowPlaying: room.nowPlaying };
   }
 
   addSongToQueue(roomCode: string, song: Song): boolean {
@@ -247,6 +249,14 @@ export class RoomManager {
       room.clients.forEach((client) => {
         client.send(messageStr);
       });
+    }
+  }
+
+  updateQueueState(roomCode: string, queue: Song[], nowPlaying: Song | null): void {
+    const room = this.rooms.get(roomCode);
+    if (room) {
+      room.queue = queue;
+      room.nowPlaying = nowPlaying;
     }
   }
 }
