@@ -35,7 +35,8 @@ data class ServiceState(
     val roomCode: String? = null,
     val qrCodeBitmap: Bitmap? = null,
     val listenerCount: Int = 0,
-    val queue: List<QueuedSong> = emptyList(),
+    val primaryQueue: List<QueuedSong> = emptyList(),
+    val auxiliaryQueue: List<QueuedSong> = emptyList(),
     val nowPlaying: QueuedSong? = null,
     val currentTrack: CurrentTrack? = null,
     val isYtmConnected: Boolean = false,
@@ -206,9 +207,9 @@ class ListeningService : Service() {
             }
 
             is ServerMessage.SongAdded -> {
-                queueManager.add(message.song)
+                queueManager.addToPrimary(message.song)
                 _serviceState.value = _serviceState.value.copy(
-                    queue = queueManager.getAll()
+                    primaryQueue = queueManager.getPrimaryQueue()
                 )
 
                 sendQueueUpdate()
@@ -217,6 +218,21 @@ class ListeningService : Service() {
                 // We check both nowPlaying (our queue state) AND if YTM is actively playing,
                 // because nowPlaying can be null briefly before a song actually ends
                 // (due to early song-end detection to avoid YTM history pollution).
+                val ytmIsPlaying = mediaObserver.currentTrack.value?.isPlaying == true
+                if (_serviceState.value.nowPlaying == null && !ytmIsPlaying) {
+                    playNextFromQueue()
+                }
+            }
+
+            is ServerMessage.PlaylistSongsAdded -> {
+                queueManager.addToAuxiliary(message.songs)
+                _serviceState.value = _serviceState.value.copy(
+                    auxiliaryQueue = queueManager.getAuxiliaryQueue()
+                )
+
+                sendQueueUpdate()
+
+                // Start playing if nothing is currently playing
                 val ytmIsPlaying = mediaObserver.currentTrack.value?.isPlaying == true
                 if (_serviceState.value.nowPlaying == null && !ytmIsPlaying) {
                     playNextFromQueue()
@@ -250,7 +266,8 @@ class ListeningService : Service() {
             Log.d(TAG, "queue is empty")
             _serviceState.value = _serviceState.value.copy(
                 nowPlaying = null,
-                queue = queueManager.getAll()
+                primaryQueue = queueManager.getPrimaryQueue(),
+                auxiliaryQueue = queueManager.getAuxiliaryQueue()
             )
             sendQueueUpdate()
             return
@@ -259,7 +276,8 @@ class ListeningService : Service() {
         Log.d(TAG, "playing next song: ${nextSong.title}")
         _serviceState.value = _serviceState.value.copy(
             nowPlaying = nextSong,
-            queue = queueManager.getAll()
+            primaryQueue = queueManager.getPrimaryQueue(),
+            auxiliaryQueue = queueManager.getAuxiliaryQueue()
         )
         sendQueueUpdate()
 
@@ -286,7 +304,7 @@ class ListeningService : Service() {
     private fun sendQueueUpdate() {
         val state = _serviceState.value
         if (state.connectionState == ConnectionState.CONNECTED) {
-            webSocketClient.sendQueueUpdate(state.queue, state.nowPlaying)
+            webSocketClient.sendQueueUpdate(state.primaryQueue, state.auxiliaryQueue, state.nowPlaying)
         }
     }
 

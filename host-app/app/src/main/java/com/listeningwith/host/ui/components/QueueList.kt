@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,19 +25,20 @@ import com.listeningwith.host.queue.QueuedSong
 
 @Composable
 fun QueueList(
-    queue: List<QueuedSong>,
+    primaryQueue: List<QueuedSong>,
+    auxiliaryQueue: List<QueuedSong>,
     modifier: Modifier = Modifier
 ) {
+    val totalSize = primaryQueue.size + auxiliaryQueue.size
+
     Column(modifier = modifier) {
-        Text(
-            text = "up next (${queue.size})",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (queue.isEmpty()) {
+        if (totalSize == 0) {
+            Text(
+                text = "up next (0)",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "no songs in queue",
                 style = MaterialTheme.typography.bodyMedium,
@@ -44,12 +46,48 @@ fun QueueList(
             )
         } else {
             LazyColumn {
-                itemsIndexed(queue) { index, song ->
-                    QueueItem(
-                        position = index + 1,
-                        song = song,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                // Primary Queue Section
+                if (primaryQueue.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "up next (${primaryQueue.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    itemsIndexed(primaryQueue) { index, song ->
+                        QueueItem(
+                            position = index + 1,
+                            song = song,
+                            isAuxiliary = false,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // Auxiliary Queue Section
+                if (auxiliaryQueue.isNotEmpty()) {
+                    item {
+                        val sourceName = auxiliaryQueue.firstOrNull()?.source?.name ?: "playlist"
+                        val sourceType = auxiliaryQueue.firstOrNull()?.source?.type ?: "playlist"
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "from $sourceType ($sourceName)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF9333EA), // Purple color
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    itemsIndexed(auxiliaryQueue) { index, song ->
+                        QueueItem(
+                            position = primaryQueue.size + index + 1,
+                            song = song,
+                            isAuxiliary = true,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -60,13 +98,26 @@ fun QueueList(
 private fun QueueItem(
     position: Int,
     song: QueuedSong,
+    isAuxiliary: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val containerColor = if (isAuxiliary) {
+        Color(0xFFF3E8FF) // Light purple
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val accentColor = if (isAuxiliary) {
+        Color(0xFF9333EA) // Purple
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = containerColor
         )
     ) {
         Row(
@@ -79,7 +130,7 @@ private fun QueueItem(
                 text = "$position.",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = accentColor
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -94,7 +145,7 @@ private fun QueueItem(
                 Text(
                     text = song.submittedBy ?: "anonymous",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isAuxiliary) Color(0xFF9333EA) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

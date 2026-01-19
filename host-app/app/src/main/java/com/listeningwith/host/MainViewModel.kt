@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.listeningwith.host.media.MediaSessionDebug
 import com.listeningwith.host.queue.QueuedSong
 import com.listeningwith.host.service.ListeningService
 import com.listeningwith.host.websocket.ConnectionState
@@ -37,7 +38,8 @@ data class UiState(
     val listenerCount: Int = 0,
     val qrCodeBitmap: Bitmap? = null,
     val nowPlaying: QueuedSong? = null,
-    val queue: List<QueuedSong> = emptyList(),
+    val primaryQueue: List<QueuedSong> = emptyList(),
+    val auxiliaryQueue: List<QueuedSong> = emptyList(),
     val error: String? = null,
     val isConnecting: Boolean = false,
     val missingPermission: MissingPermission = MissingPermission.NONE,
@@ -187,6 +189,11 @@ class MainViewModel : ViewModel() {
         checkPermissions()
     }
 
+    fun investigateMediaSession(): String {
+        val context = applicationContext ?: return "No application context"
+        return MediaSessionDebug.investigateYouTubeMusic(context)
+    }
+
     private fun updateUiState(serviceState: com.listeningwith.host.service.ServiceState) {
         val screen = when {
             serviceState.roomCode != null -> Screen.RoomActive
@@ -201,7 +208,8 @@ class MainViewModel : ViewModel() {
             listenerCount = serviceState.listenerCount,
             qrCodeBitmap = serviceState.qrCodeBitmap,
             nowPlaying = serviceState.nowPlaying,
-            queue = serviceState.queue,
+            primaryQueue = serviceState.primaryQueue,
+            auxiliaryQueue = serviceState.auxiliaryQueue,
             error = serviceState.error,
             isConnecting = serviceState.connectionState == ConnectionState.CONNECTING ||
                           serviceState.connectionState == ConnectionState.RECONNECTING

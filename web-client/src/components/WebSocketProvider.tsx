@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import type { ClientMessage, ServerMessage, SearchResult, Song } from '../lib/types';
+import type { ClientMessage, ServerMessage, SearchResult, Song, PlaylistInfo, AlbumInfo } from '../lib/types';
 
 interface WebSocketContextType {
   isConnected: boolean;
@@ -7,14 +7,24 @@ interface WebSocketContextType {
   roomCode: string | null;
   displayName: string | null;
   searchResults: SearchResult[];
-  queue: Song[];
+  primaryQueue: Song[];
+  auxiliaryQueue: Song[];
   nowPlaying: Song | null;
   lastError: string | null;
+  playlistPreview: PlaylistInfo | null;
+  albumPreview: AlbumInfo | null;
+  isLoadingPreview: boolean;
   joinRoom: (roomCode: string, displayName?: string) => void;
   searchSongs: (query: string) => void;
   addSong: (song: SearchResult, submittedBy?: string) => void;
   clearSearchResults: () => void;
   leaveRoom: () => void;
+  parseUrl: (url: string) => void;
+  fetchPlaylist: (playlistId: string) => void;
+  fetchAlbum: (albumId: string) => void;
+  addPlaylist: (playlistId: string, shuffle: boolean) => void;
+  addAlbum: (albumId: string, shuffle: boolean) => void;
+  clearPreview: () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -34,9 +44,13 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [queue, setQueue] = useState<Song[]>([]);
+  const [primaryQueue, setPrimaryQueue] = useState<Song[]>([]);
+  const [auxiliaryQueue, setAuxiliaryQueue] = useState<Song[]>([]);
   const [nowPlaying, setNowPlaying] = useState<Song | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [playlistPreview, setPlaylistPreview] = useState<PlaylistInfo | null>(null);
+  const [albumPreview, setAlbumPreview] = useState<AlbumInfo | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   // Store room info for reconnection after disconnect
   const pendingRejoin = useRef<{ roomCode: string; displayName?: string } | null>(null);
@@ -155,11 +169,42 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.log('song added successfully');
         break;
       case 'queue_update':
-        setQueue(message.queue);
+        setPrimaryQueue(message.primaryQueue);
+        setAuxiliaryQueue(message.auxiliaryQueue);
         setNowPlaying(message.nowPlaying);
+        break;
+      case 'playlist_info':
+        setPlaylistPreview({
+          playlistId: message.playlistId,
+          name: message.name,
+          artist: message.artist,
+          thumbnailUrl: message.thumbnailUrl,
+          videoCount: message.videoCount,
+        });
+        setIsLoadingPreview(false);
+        break;
+      case 'album_info':
+        setAlbumPreview({
+          albumId: message.albumId,
+          name: message.name,
+          artist: message.artist,
+          thumbnailUrl: message.thumbnailUrl,
+          year: message.year,
+          songCount: message.songCount,
+        });
+        setIsLoadingPreview(false);
+        break;
+      case 'playlist_added_success':
+        console.log(`playlist added: ${message.songCount} songs from ${message.playlistName}`);
+        setPlaylistPreview(null);
+        break;
+      case 'album_added_success':
+        console.log(`album added: ${message.songCount} songs from ${message.albumName}`);
+        setAlbumPreview(null);
         break;
       case 'error':
         setLastError(message.message.toLowerCase());
+        setIsLoadingPreview(false);
         break;
       case 'room_closed':
         setRoomCode(null);
@@ -186,6 +231,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addSong = (song: SearchResult, submittedBy?: string) => {
+    if (!song.videoId) return; // Only add songs, not albums
     sendMessage({
       type: 'add_song',
       videoId: song.videoId,
@@ -198,12 +244,54 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const clearSearchResults = () => {
     setSearchResults([]);
   };
-  
+
   const leaveRoom = () => {
     pendingRejoin.current = null;
     setRoomCode(null);
     setDisplayName(null);
     setSearchResults([]);
+    setPrimaryQueue([]);
+    setAuxiliaryQueue([]);
+  };
+
+  const parseUrl = (url: string) => {
+    sendMessage({ type: 'parse_url', url });
+  };
+
+  const fetchPlaylist = (playlistId: string) => {
+    setIsLoadingPreview(true);
+    setAlbumPreview(null);
+    sendMessage({ type: 'fetch_playlist', playlistId });
+  };
+
+  const fetchAlbum = (albumId: string) => {
+    setIsLoadingPreview(true);
+    setPlaylistPreview(null);
+    sendMessage({ type: 'fetch_album', albumId });
+  };
+
+  const addPlaylist = (playlistId: string, shuffle: boolean) => {
+    sendMessage({
+      type: 'add_playlist',
+      playlistId,
+      shuffle,
+      submittedBy: displayName || undefined
+    });
+  };
+
+  const addAlbum = (albumId: string, shuffle: boolean) => {
+    sendMessage({
+      type: 'add_album',
+      albumId,
+      shuffle,
+      submittedBy: displayName || undefined
+    });
+  };
+
+  const clearPreview = () => {
+    setPlaylistPreview(null);
+    setAlbumPreview(null);
+    setIsLoadingPreview(false);
   };
 
   return (
@@ -214,14 +302,24 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         roomCode,
         displayName,
         searchResults,
-        queue,
+        primaryQueue,
+        auxiliaryQueue,
         nowPlaying,
         lastError,
+        playlistPreview,
+        albumPreview,
+        isLoadingPreview,
         joinRoom,
         searchSongs,
         addSong,
         clearSearchResults,
-        leaveRoom
+        leaveRoom,
+        parseUrl,
+        fetchPlaylist,
+        fetchAlbum,
+        addPlaylist,
+        addAlbum,
+        clearPreview
       }}
     >
       {children}

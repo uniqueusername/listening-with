@@ -76,7 +76,8 @@ class MainActivity : ComponentActivity() {
                             isCustomUrlVisible = state.isCustomUrlVisible,
                             onToggleCustomUrl = viewModel::toggleCustomUrl,
                             onUpdateCustomUrl = viewModel::updateCustomUrl,
-                            onUpdateWebClientBaseUrl = viewModel::updateWebClientBaseUrl
+                            onUpdateWebClientBaseUrl = viewModel::updateWebClientBaseUrl,
+                            onInvestigateMediaSession = viewModel::investigateMediaSession
                         )
 
                         Screen.Connecting -> ConnectingScreen(
@@ -90,7 +91,8 @@ class MainActivity : ComponentActivity() {
                             listenerCount = state.listenerCount,
                             qrCodeBitmap = state.qrCodeBitmap,
                             nowPlaying = state.nowPlaying,
-                            queue = state.queue,
+                            primaryQueue = state.primaryQueue,
+                            auxiliaryQueue = state.auxiliaryQueue,
                             onEndRoom = viewModel::endRoom
                         )
 

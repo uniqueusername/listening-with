@@ -24,14 +24,16 @@ sealed class ClientMessage {
     }
 
     data class UpdateQueue(
-        val queue: List<QueuedSong>,
+        val primaryQueue: List<QueuedSong>,
+        val auxiliaryQueue: List<QueuedSong>,
         val nowPlaying: QueuedSong?
     ) : ClientMessage() {
         override fun toJson(): String {
             val gson = Gson()
             return gson.toJson(mapOf(
                 "type" to "update_queue",
-                "queue" to queue,
+                "primaryQueue" to primaryQueue,
+                "auxiliaryQueue" to auxiliaryQueue,
                 "nowPlaying" to nowPlaying
             ))
         }
@@ -67,13 +69,18 @@ sealed class ServerMessage {
                     "song_added" -> {
                         val songObj = jsonObject.getAsJsonObject("song")
                         SongAdded(
-                            song = QueuedSong(
-                                videoId = songObj.get("videoId").asString,
-                                title = songObj.get("title").asString,
-                                artist = songObj.get("artist").asString,
-                                submittedBy = songObj.get("submittedBy")?.asString
-                            ),
+                            song = parseSongFromJson(songObj),
                             queueLength = jsonObject.get("queueLength").asInt
+                        )
+                    }
+                    "playlist_songs_added" -> {
+                        val songsArray = jsonObject.getAsJsonArray("songs")
+                        val songs = songsArray.map { parseSongFromJson(it.asJsonObject) }
+                        PlaylistSongsAdded(
+                            songs = songs,
+                            sourceName = jsonObject.get("sourceName")?.asString ?: "Unknown",
+                            sourceType = jsonObject.get("sourceType")?.asString ?: "playlist",
+                            auxiliaryQueueLength = jsonObject.get("auxiliaryQueueLength").asInt
                         )
                     }
                     "heartbeat_ack" -> HeartbeatAck
@@ -88,6 +95,25 @@ sealed class ServerMessage {
             } catch (e: Exception) {
                 null
             }
+        }
+
+        private fun parseSongFromJson(songObj: com.google.gson.JsonObject): QueuedSong {
+            val sourceObj = songObj.get("source")?.asJsonObject
+            val source = if (sourceObj != null) {
+                com.listeningwith.host.queue.SongSource(
+                    type = sourceObj.get("type")?.asString ?: "search",
+                    id = sourceObj.get("id")?.asString,
+                    name = sourceObj.get("name")?.asString
+                )
+            } else null
+
+            return QueuedSong(
+                videoId = songObj.get("videoId").asString,
+                title = songObj.get("title").asString,
+                artist = songObj.get("artist").asString,
+                submittedBy = songObj.get("submittedBy")?.asString,
+                source = source
+            )
         }
     }
 
@@ -111,6 +137,13 @@ sealed class ServerMessage {
     data class SongAdded(
         val song: QueuedSong,
         val queueLength: Int
+    ) : ServerMessage()
+
+    data class PlaylistSongsAdded(
+        val songs: List<QueuedSong>,
+        val sourceName: String,
+        val sourceType: String,
+        val auxiliaryQueueLength: Int
     ) : ServerMessage()
 
     object HeartbeatAck : ServerMessage()

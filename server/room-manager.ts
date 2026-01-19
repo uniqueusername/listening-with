@@ -7,14 +7,10 @@ interface WebSocketData {
   clientId?: string;
 }
 
-interface Room {
-  code: string;
-  host: ServerWebSocket<WebSocketData>;
-  clients: Set<ServerWebSocket<WebSocketData>>;
-  queue: Song[];
-  nowPlaying: Song | null;
-  lastActivity: number;
-  createdAt: number;
+interface SongSource {
+  type: "search" | "playlist" | "album";
+  id?: string;
+  name?: string;
 }
 
 interface Song {
@@ -22,6 +18,18 @@ interface Song {
   title: string;
   artist: string;
   submittedBy?: string;
+  source?: SongSource;
+}
+
+interface Room {
+  code: string;
+  host: ServerWebSocket<WebSocketData>;
+  clients: Set<ServerWebSocket<WebSocketData>>;
+  primaryQueue: Song[];
+  auxiliaryQueue: Song[];
+  nowPlaying: Song | null;
+  lastActivity: number;
+  createdAt: number;
 }
 
 export class RoomManager {
@@ -56,7 +64,8 @@ export class RoomManager {
       code,
       host,
       clients: new Set(),
-      queue: [],
+      primaryQueue: [],
+      auxiliaryQueue: [],
       nowPlaying: null,
       lastActivity: Date.now(),
       createdAt: Date.now(),
@@ -85,7 +94,7 @@ export class RoomManager {
     roomCode: string,
     client: ServerWebSocket<WebSocketData>,
     displayName?: string
-  ): { success: false } | { success: true; queue: Song[]; nowPlaying: Song | null } {
+  ): { success: false } | { success: true; primaryQueue: Song[]; auxiliaryQueue: Song[]; nowPlaying: Song | null } {
     const room = this.rooms.get(roomCode);
 
     if (!room) {
@@ -115,7 +124,12 @@ export class RoomManager {
       })
     );
 
-    return { success: true, queue: room.queue, nowPlaying: room.nowPlaying };
+    return {
+      success: true,
+      primaryQueue: room.primaryQueue,
+      auxiliaryQueue: room.auxiliaryQueue,
+      nowPlaying: room.nowPlaying
+    };
   }
 
   addSongToQueue(roomCode: string, song: Song): boolean {
@@ -125,7 +139,7 @@ export class RoomManager {
       return false;
     }
 
-    room.queue.push(song);
+    room.primaryQueue.push(song);
     room.lastActivity = Date.now();
 
     console.log(
@@ -139,7 +153,51 @@ export class RoomManager {
       JSON.stringify({
         type: "song_added",
         song,
-        queueLength: room.queue.length,
+        queueLength: room.primaryQueue.length,
+      })
+    );
+
+    return true;
+  }
+
+  addSongsToAuxiliaryQueue(
+    roomCode: string,
+    songs: Song[],
+    sourceName: string,
+    sourceType: "playlist" | "album",
+    sourceId: string
+  ): boolean {
+    const room = this.rooms.get(roomCode);
+
+    if (!room) {
+      return false;
+    }
+
+    // Add source info to each song
+    const songsWithSource = songs.map((song) => ({
+      ...song,
+      source: {
+        type: sourceType,
+        id: sourceId,
+        name: sourceName,
+      },
+    }));
+
+    room.auxiliaryQueue.push(...songsWithSource);
+    room.lastActivity = Date.now();
+
+    console.log(
+      `${songs.length} songs from ${sourceType} "${sourceName}" added to auxiliary queue in room ${roomCode}`
+    );
+
+    // notify host of playlist/album songs added
+    room.host.send(
+      JSON.stringify({
+        type: "playlist_songs_added",
+        songs: songsWithSource,
+        sourceName,
+        sourceType,
+        auxiliaryQueueLength: room.auxiliaryQueue.length,
       })
     );
 
@@ -252,10 +310,16 @@ export class RoomManager {
     }
   }
 
-  updateQueueState(roomCode: string, queue: Song[], nowPlaying: Song | null): void {
+  updateQueueState(
+    roomCode: string,
+    primaryQueue: Song[],
+    auxiliaryQueue: Song[],
+    nowPlaying: Song | null
+  ): void {
     const room = this.rooms.get(roomCode);
     if (room) {
-      room.queue = queue;
+      room.primaryQueue = primaryQueue;
+      room.auxiliaryQueue = auxiliaryQueue;
       room.nowPlaying = nowPlaying;
     }
   }

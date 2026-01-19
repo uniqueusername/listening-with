@@ -33,7 +33,8 @@ fun RoomScreen(
     listenerCount: Int,
     qrCodeBitmap: Bitmap?,
     nowPlaying: QueuedSong?,
-    queue: List<QueuedSong>,
+    primaryQueue: List<QueuedSong>,
+    auxiliaryQueue: List<QueuedSong>,
     onEndRoom: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -114,7 +115,8 @@ fun RoomScreen(
 
             // Queue
             QueueList(
-                queue = queue,
+                primaryQueue = primaryQueue,
+                auxiliaryQueue = auxiliaryQueue,
                 modifier = Modifier.weight(1f)
             )
         }
