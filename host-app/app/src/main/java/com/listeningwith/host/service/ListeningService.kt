@@ -211,8 +211,12 @@ class ListeningService : Service() {
 
                 sendQueueUpdate()
 
-                // If nothing is playing, start playing
-                if (_serviceState.value.nowPlaying == null) {
+                // Only start playing if nothing is currently playing in YouTube Music.
+                // We check both nowPlaying (our queue state) AND if YTM is actively playing,
+                // because nowPlaying can be null briefly before a song actually ends
+                // (due to early song-end detection to avoid YTM history pollution).
+                val ytmIsPlaying = mediaObserver.currentTrack.value?.isPlaying == true
+                if (_serviceState.value.nowPlaying == null && !ytmIsPlaying) {
                     playNextFromQueue()
                 }
             }
